@@ -46,7 +46,7 @@ impl GeckodriverInstance {
             tokio::task::spawn(async move {
                 let mut reader = BufReader::new(stderr).lines();
                 while let Some(line) = reader.next_line().await.ok().and_then(|v| v) {
-                    debug!("{line}");
+                    warn!("{line}");
                 }
             });
         }
@@ -54,7 +54,7 @@ impl GeckodriverInstance {
             tokio::task::spawn(async move {
                 let mut reader = BufReader::new(stdout).lines();
                 while let Some(line) = reader.next_line().await.ok().and_then(|v| v) {
-                    info!("{line}");
+                    debug!("{line}");
                 }
             });
         }
