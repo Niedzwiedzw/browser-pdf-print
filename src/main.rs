@@ -1,7 +1,10 @@
 use clap::Parser;
 #[allow(unused_imports)]
 use eyre::{Result, WrapErr};
-use std::{os::unix::prelude::PermissionsExt, path::PathBuf};
+use std::{
+    os::unix::prelude::PermissionsExt,
+    path::{Path, PathBuf},
+};
 #[allow(unused_imports)]
 use tracing::{debug, error, info, instrument, trace, warn};
 use tracing_subscriber::EnvFilter;
@@ -19,7 +22,9 @@ pub async fn sleep_ms(ms: u64) {
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    /// output file (if this option is not present it defaults to STDOUT)
+    #[arg(short, long, value_name = "FILE")]
+    /// saves output file at the same path as source, changing only the extension
+    update_extension: bool,
     #[arg(short, long, value_name = "FILE")]
     out_file: Option<PathBuf>,
     /// source file that will be loaded into the browser
@@ -45,6 +50,7 @@ async fn main() -> Result<()> {
     let Cli {
         source_file,
         out_file,
+        update_extension,
     } = Cli::parse();
     tracing::debug!(?source_file, "printing file");
     let geckodriver_path = PathBuf::from("/tmp/geckodriver");
@@ -96,17 +102,25 @@ async fn main() -> Result<()> {
                 base64::engine::general_purpose::PAD,
             );
             let mut decoder = base64::read::DecoderReader::new(&mut contents, &engine);
-            match out_file {
-                Some(out_file) => {
-                    {
-                        let mut out_file = std::fs::File::create(&out_file)
-                            .wrap_err("opening output file for writing")?;
+            let mut save_to_file = |out_file: &Path| {
+                std::fs::File::create(out_file)
+                    .wrap_err("opening output file for writing")
+                    .and_then(|mut out_file| {
                         std::io::copy(&mut decoder, &mut out_file)
-                            .context("decoding base64 output and writing to a file")?;
-                    }
-                    println!("{}", out_file.display());
+                            .context("decoding base64 output and writing to a file")
+                    })
+                    .map(|_| {
+                        println!("{}", out_file.display());
+                    })
+            };
+            match (out_file, update_extension) {
+                (Some(out_file), _) => {
+                    save_to_file(&out_file)?;
                 }
-                None => {
+                (None, true) => {
+                    save_to_file(&source_file.with_extension("pdf"))?;
+                }
+                _ => {
                     std::io::copy(&mut decoder, &mut stdout)
                         .context("decoding base64 output and writing to stdout")?;
                 }
