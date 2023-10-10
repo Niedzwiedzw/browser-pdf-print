@@ -1,10 +1,7 @@
 use clap::Parser;
 #[allow(unused_imports)]
 use eyre::{Result, WrapErr};
-use std::{
-    os::unix::prelude::PermissionsExt,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 #[allow(unused_imports)]
 use tracing::{debug, error, info, instrument, trace, warn};
 use tracing_subscriber::EnvFilter;
@@ -22,6 +19,8 @@ pub async fn sleep_ms(ms: u64) {
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    #[arg(short, long, value_name = "FILE", default_value = "geckodriver")]
+    geckodriver_path: PathBuf,
     #[arg(short, long, value_name = "FILE")]
     /// saves output file at the same path as source, changing only the extension
     update_extension: bool,
@@ -51,15 +50,9 @@ async fn main() -> Result<()> {
         source_file,
         out_file,
         update_extension,
+        geckodriver_path,
     } = Cli::parse();
     tracing::debug!(?source_file, "printing file");
-    let geckodriver_path = PathBuf::from("/tmp/geckodriver");
-    tokio::fs::write(&geckodriver_path, geckodriver::GECKODRIVER_BIN)
-        .await
-        .context("writing geckodriver")?; // TODO: better path
-    tokio::fs::set_permissions(&geckodriver_path, std::fs::Permissions::from_mode(0o744))
-        .await
-        .wrap_err("setting permissions for geckodriver")?;
     let geckodriver_options = geckodriver::GeckodriverSpawnOptions {
         path: geckodriver_path,
         headless: true,
@@ -81,13 +74,6 @@ async fn main() -> Result<()> {
         .firefox
         .client
         .issue_cmd(WebDriverCommand::Print(PrintParameters {
-            // orientation: todo!(),
-            // scale: todo!(),
-            // background: todo!(),
-            // page: todo!(),
-            // margin: todo!(),
-            // page_ranges: todo!(),
-            // shrink_to_fit: todo!(),
             ..PrintParameters::default()
         }))
         .await
