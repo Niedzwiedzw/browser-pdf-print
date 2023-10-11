@@ -19,7 +19,7 @@ pub async fn sleep_ms(ms: u64) {
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    #[arg(short, long, value_name = "FILE", default_value = "geckodriver")]
+    #[arg(short, long, value_name = "FILE", default_value = "geckodriver", env)]
     geckodriver_path: PathBuf,
     #[arg(short, long, value_name = "FILE")]
     /// saves output file at the same path as source, changing only the extension
